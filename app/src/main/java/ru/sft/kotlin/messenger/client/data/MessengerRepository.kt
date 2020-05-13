@@ -13,18 +13,15 @@ import okhttp3.*
 import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory
 import ru.sft.kotlin.messenger.client.*
-import ru.sft.kotlin.messenger.client.api.MessengerApi
-import ru.sft.kotlin.messenger.client.api.PasswordInfo
-import ru.sft.kotlin.messenger.client.api.RefreshTokenApi
-import ru.sft.kotlin.messenger.client.api.RefreshTokenInfo
+import ru.sft.kotlin.messenger.client.api.*
 import ru.sft.kotlin.messenger.client.data.entity.*
 import ru.sft.kotlin.messenger.client.util.CallNotExecutedException
 import ru.sft.kotlin.messenger.client.util.Result
 import ru.sft.kotlin.messenger.client.util.SingletonHolder
 import ru.sft.kotlin.messenger.client.util.invokeAsync
 
-class MessengerRepository private constructor(private val context: Context):
-                          SharedPreferences.OnSharedPreferenceChangeListener, Authenticator {
+class MessengerRepository private constructor(private val context: Context) :
+    SharedPreferences.OnSharedPreferenceChangeListener, Authenticator {
 
     companion object : SingletonHolder<MessengerRepository, Context>({
         MessengerRepository(it.applicationContext)
@@ -49,7 +46,8 @@ class MessengerRepository private constructor(private val context: Context):
         preferences.registerOnSharedPreferenceChangeListener(this)
         preferences.getString(PREF_USER_ID, null)?.let {
             runBlocking {
-                _currentUser.value =  dao.getUser(it) ?: throw IllegalStateException("Cannot load current user from database")
+                _currentUser.value = dao.getUser(it)
+                    ?: throw IllegalStateException("Cannot load current user from database")
             }
         }
     }
@@ -115,15 +113,18 @@ class MessengerRepository private constructor(private val context: Context):
 
     @Synchronized
     private fun updateAccessToken(): String? {
-        val accessToken = getAccessToken() ?: throw IllegalStateException("No access token to refresh")
-        val refreshToken = getRefreshToken() ?: throw IllegalStateException("No refresh token for refresh")
+        val accessToken =
+            getAccessToken() ?: throw IllegalStateException("No access token to refresh")
+        val refreshToken =
+            getRefreshToken() ?: throw IllegalStateException("No refresh token for refresh")
         try {
             val response = refreshTokenApi.refreshAccessToken(
                 accessToken.toBearer(),
                 RefreshTokenInfo(refreshToken)
             ).execute()
             if (response.isSuccessful) {
-                val authInfo = response.body() ?: throw IllegalStateException("Empty response during refresh")
+                val authInfo =
+                    response.body() ?: throw IllegalStateException("Empty response during refresh")
                 PreferenceManager
                     .getDefaultSharedPreferences(context)
                     .edit()
@@ -134,8 +135,7 @@ class MessengerRepository private constructor(private val context: Context):
             }
             Log.w(logTag, "Error during refresh token update: ${response.errorBody()}")
             return null
-        }
-        catch (t: Throwable) {
+        } catch (t: Throwable) {
             Log.w(logTag, "Cannot update refresh token", t)
             return null
         }
@@ -180,16 +180,28 @@ class MessengerRepository private constructor(private val context: Context):
                 .toTypedArray()
             // сохраняем в базу данных
             dao.insertMessages(*messages)
-        }
-        catch (e: CallNotExecutedException) {
+        } catch (e: CallNotExecutedException) {
             Log.w(logTag, "Request error: ${e.message}", e)
-        }
-        catch (e: Exception) {
+        } catch (e: Exception) {
             Log.e(logTag, e.message, e)
         }
     }
 
     private val logTag = "Repository"
+
+    suspend fun register(userId: String, displayName: String, password: String): Result<Int> {
+        try {
+            val req_res = api.registerUser(NewUserInfo(userId, displayName, password)).invokeAsync()
+            Log.d("Request res", req_res.displayName)
+        } catch (e: CallNotExecutedException) {
+            Log.w(logTag, "Request error: ${e.message}", e)
+            return Result.Error(e)
+        } catch (e: Exception) {
+            Log.e(logTag, e.message, e)
+            return Result.Error(e)
+        }
+        return Result.Success(200)
+    }
 
     suspend fun signIn(userId: String, password: String): Result<User> {
         val previousUser = _currentUser.value
@@ -201,7 +213,8 @@ class MessengerRepository private constructor(private val context: Context):
             // отправляем запрос Sign In на сервер
             val authInfo = api.signIn(userId, PasswordInfo(password)).invokeAsync()
             // запрашиваем данные пользователя
-            val userInfo = api.getUserByUserId(userId, authInfo.accessTokenHeader).invokeAsync() ?: return Result.Error(IllegalStateException("User not found"))
+            val userInfo = api.getUserByUserId(userId, authInfo.accessTokenHeader).invokeAsync()
+                ?: return Result.Error(IllegalStateException("User not found"))
             // запрашиваем список чатов пользователя
             val chats = api.listChats(authInfo.accessTokenHeader).invokeAsync()
             // обновляем даныне в настройках и локальной базе данных
@@ -211,7 +224,7 @@ class MessengerRepository private constructor(private val context: Context):
             // NB! Сиситемный чат отличается тем, что из него нельзя выйти и в него нельзя приглашать.
             // Кроме того для него требуется специальная обработка сообщений с приглашениями в чаты
             // других пользователей. Системным является чат, в котором есть системный пользователь.
-            var systemChatId : Int = -1
+            var systemChatId: Int = -1
 
             // запрашиваем данные о системном пользователе и сохраняем в базе
             val systemUserInfo = api.getSystemUser(authInfo.accessTokenHeader).invokeAsync()
@@ -225,10 +238,12 @@ class MessengerRepository private constructor(private val context: Context):
 
             // запрашиваем участников чата для каждого чата
             chats.forEach { chat ->
-                val members = api.listChatMembers(chat.chatId, authInfo.accessTokenHeader).invokeAsync()
+                val members =
+                    api.listChatMembers(chat.chatId, authInfo.accessTokenHeader).invokeAsync()
                 val membersArray = members
                     .map {
-                        val name = api.getUserByUserId(it.userId, authInfo.accessTokenHeader).invokeAsync()?.displayName ?: "[ ${it.userId} ]"
+                        val name = api.getUserByUserId(it.userId, authInfo.accessTokenHeader)
+                            .invokeAsync()?.displayName ?: "[ ${it.userId} ]"
                         dao.insertUsers(User(it.userId, name))
                         // Исползуем то имя чата, которое выбрал currentUser при создании свойго чата или вступлении в чужой чат
                         if (it.userId == userId) {
@@ -269,12 +284,10 @@ class MessengerRepository private constructor(private val context: Context):
                 .apply()
             _currentUser.value = user
             return Result.Success(user)
-        }
-        catch (e: CallNotExecutedException) {
+        } catch (e: CallNotExecutedException) {
             Log.w(logTag, "Request error: ${e.message}", e)
             return Result.Error(e)
-        }
-        catch (e: Exception) {
+        } catch (e: Exception) {
             Log.e(logTag, e.message, e)
             return Result.Error(e)
         }
@@ -322,7 +335,11 @@ class MessengerRepository private constructor(private val context: Context):
         }
     }
 
-    private fun getAccessToken() = PreferenceManager.getDefaultSharedPreferences(context).getString(PREF_ACCESS_TOKEN, null)
-    private fun getRefreshToken() = PreferenceManager.getDefaultSharedPreferences(context).getString(PREF_REFRESH_TOKEN, null)
+    private fun getAccessToken() =
+        PreferenceManager.getDefaultSharedPreferences(context).getString(PREF_ACCESS_TOKEN, null)
+
+    private fun getRefreshToken() =
+        PreferenceManager.getDefaultSharedPreferences(context).getString(PREF_REFRESH_TOKEN, null)
+
     private fun String.toBearer() = "Bearer $this"
 }
