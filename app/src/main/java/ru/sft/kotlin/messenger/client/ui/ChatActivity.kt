@@ -1,6 +1,7 @@
 package ru.sft.kotlin.messenger.client.ui
 
 import android.os.Bundle
+import android.os.Handler
 import android.view.*
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -21,6 +22,13 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var adapter: ChatAdapter
     private lateinit var model: ChatViewModel
 
+    override fun onResume() {
+        super.onResume()
+
+        updateUi(model.isSystemChat, menu)
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
@@ -38,8 +46,9 @@ class ChatActivity : AppCompatActivity() {
         adapter = ChatAdapter(isSystemChat)
         messagesRecyclerView.adapter = adapter
 
-        model = ViewModelProvider(this, ChatViewModelFactory(this.application, chatId, isSystemChat))
-            .get(ChatViewModel::class.java)
+        model =
+            ViewModelProvider(this, ChatViewModelFactory(this.application, chatId, isSystemChat))
+                .get(ChatViewModel::class.java)
 
         title = model.chat.value?.name ?: "..."
 
@@ -51,17 +60,25 @@ class ChatActivity : AppCompatActivity() {
         adapter.setMessages(model.messages.value ?: emptyList())
         model.messages.observe(this, Observer { messages ->
             adapter.setMessages(messages)
-            model.updateMessages()
         })
 
         sendButton.setOnClickListener {
-            // TODO: отправить сообщение
-            Toast.makeText(
-                this,
-                "TODO: отправить сообщение",
-                Toast.LENGTH_LONG
-            ).show()
+            if (isValidMessage(messageText.text.toString())) {
+                model.sendMessage(messageText.text.toString())
+                messageText.setText("")
+                updateUi(model.isSystemChat, menu)
+            }
+
+//            Toast.makeText(
+//                this,
+//                "T O D O: отправить сообщение",
+//                Toast.LENGTH_LONG
+//            ).show()
         }
+    }
+
+    private fun isValidMessage(text: String): Boolean {
+        return text.isNotBlank()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -76,6 +93,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun updateUi(isSystemChat: Boolean, menu: Menu?) {
+        model.updateMessages()
         if (menu != null) {
             menu.findItem(R.id.invite).isVisible = !isSystemChat
             menu.findItem(R.id.leave).isVisible = !isSystemChat
@@ -115,7 +133,8 @@ class ChatActivity : AppCompatActivity() {
     }
 }
 
-class ChatAdapter(private val isSystemChat: Boolean) : RecyclerView.Adapter<ChatAdapter.ChatViewHolder>() {
+class ChatAdapter(private val isSystemChat: Boolean) :
+    RecyclerView.Adapter<ChatAdapter.ChatViewHolder>() {
     class ChatViewHolder(val itemLayout: View) : RecyclerView.ViewHolder(itemLayout)
 
     // Cached messages
@@ -126,8 +145,10 @@ class ChatAdapter(private val isSystemChat: Boolean) : RecyclerView.Adapter<Chat
         this.messages.addAll(messages)
         notifyDataSetChanged()
     }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
-        val itemLayout = LayoutInflater.from(parent.context).inflate(R.layout.message_item, parent, false)
+        val itemLayout =
+            LayoutInflater.from(parent.context).inflate(R.layout.message_item, parent, false)
         return ChatViewHolder(
             itemLayout
         )
@@ -136,7 +157,10 @@ class ChatAdapter(private val isSystemChat: Boolean) : RecyclerView.Adapter<Chat
     override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
         val message = messages[position]
         val fromUser = message.memberDisplayName
-        val dateTime = SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.getDefault()).format(Date(message.createdOn))
+        val dateTime = SimpleDateFormat(
+            "dd-MMM-yyyy HH:mm:ss",
+            Locale.getDefault()
+        ).format(Date(message.createdOn))
         val itemLayout = holder.itemLayout
         itemLayout.messageHeaderTextView.text = "$dateTime [ $fromUser ]"
         itemLayout.bodyTextView.text = message.text
@@ -152,7 +176,11 @@ class ChatAdapter(private val isSystemChat: Boolean) : RecyclerView.Adapter<Chat
             // TODO: Также надо добавить обработчик нажатия на кнопку Join
         }
         itemLayout.setOnClickListener {
-            Toast.makeText(itemLayout.context, "TODO: показать опции для работы с сообщением", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                itemLayout.context,
+                "TODO: показать опции для работы с сообщением",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 

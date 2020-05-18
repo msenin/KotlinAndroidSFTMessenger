@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat.startActivity
+import androidx.core.view.isVisible
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
@@ -42,12 +43,14 @@ class MainActivity : AppCompatActivity() {
         })
 
         newChatButton.setOnClickListener {
-            // TODO: запустить Activity для создания нового чата
-            Toast.makeText(
-                this@MainActivity,
-                "TODO: запустить Activity для создания нового чата",
-                Toast.LENGTH_LONG
-            ).show()
+            val intent = Intent(this, NewChatActivity::class.java)
+            startActivity(intent)
+//            // T O D O: запустить Activity для создания нового чата
+//            Toast.makeText(
+//                this@MainActivity,
+//                "T O D O: запустить Activity для создания нового чата",
+//                Toast.LENGTH_LONG
+//            ).show()
         }
     }
 
@@ -64,6 +67,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateUi(model.isSignedIn, menu)
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -84,9 +88,12 @@ class MainActivity : AppCompatActivity() {
         }
         if (isSignedIn) {
             model.currentUser.value?.apply { title = displayName }
+            model.updateChatsList()
+            newChatButton.visibility = View.VISIBLE
 
         }
         else {
+            newChatButton.visibility = View.GONE
             title = "Not Signed In"
         }
 

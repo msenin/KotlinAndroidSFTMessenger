@@ -28,4 +28,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repository.signOut()
         }
     }
+
+    fun updateChatsList() {
+        viewModelScope.launch {
+            repository.updateChats()
+        }
+    }
 }

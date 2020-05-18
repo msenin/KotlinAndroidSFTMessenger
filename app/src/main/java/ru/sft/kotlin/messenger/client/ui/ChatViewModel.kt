@@ -1,12 +1,14 @@
 package ru.sft.kotlin.messenger.client.ui
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import ru.sft.kotlin.messenger.client.data.MessengerRepository
 import ru.sft.kotlin.messenger.client.data.entity.Message
 import ru.sft.kotlin.messenger.client.data.entity.User
+import ru.sft.kotlin.messenger.client.util.Result
 
 class ChatViewModel(
     application: Application,
@@ -34,6 +36,16 @@ class ChatViewModel(
 
     fun deleteMessage(message: Message) = viewModelScope.launch(Dispatchers.IO) {
         repository.deleteMessage(message)
+    }
+
+    fun sendMessage(text: String) {
+        viewModelScope.launch {
+            val regResult = repository.sendMessage(chatId, text)
+            if (regResult !is Result.Success) {
+                Log.w("MESSAGE SENDING", "failed")
+            }
+        }
+
     }
 }
 
