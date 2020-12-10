@@ -1,9 +1,12 @@
 package ru.sft.kotlin.messenger.client.ui
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.SpannableStringBuilder
 import android.view.*
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat.startActivity
@@ -14,15 +17,19 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.chat_item.view.*
+import kotlinx.coroutines.Job
 import ru.sft.kotlin.messenger.client.R
 import ru.sft.kotlin.messenger.client.data.entity.ChatWithMembers
 import ru.sft.kotlin.messenger.client.data.entity.User
+import ru.sft.kotlin.messenger.client.util.getAutoColoredString
+import ru.sft.kotlin.messenger.client.util.getColoredString
 
 class MainActivity : AppCompatActivity() {
 
     private var menu: Menu? = null
     private lateinit var adapter: RecyclerView.Adapter<UserChatsAdapter.UserChatsViewHolder>
     private lateinit var model: MainViewModel
+    private lateinit var job: Job
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,6 +42,11 @@ class MainActivity : AppCompatActivity() {
         chatsRecyclerView.adapter = adapter
 
         model.currentUser.observe(this, Observer { user ->
+            if (user != null)
+                model.updateJobStart()
+            else
+                model.updateJobStop()
+
             updateUi(user != null, menu)
         })
         model.currentUserChats.observe(this, Observer { chats ->
@@ -42,13 +54,16 @@ class MainActivity : AppCompatActivity() {
         })
 
         newChatButton.setOnClickListener {
-            // TODO: запустить Activity для создания нового чата
-            Toast.makeText(
-                this@MainActivity,
-                "TODO: запустить Activity для создания нового чата",
-                Toast.LENGTH_LONG
-            ).show()
+            val intent = Intent(this, CreateChatActivity::class.java)
+            startActivity(intent)
         }
+
+        model.updateJobStart()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        model.updateJobStop()
     }
 
     private fun showSettings() {
@@ -151,7 +166,7 @@ class UserChatsAdapter(var currentUser: LiveData<User?>) :
         val chat = chats[position]
         val itemLayout = holder.itemLayout
         itemLayout.chatHeaderTextView.text = chat.name
-        itemLayout.chatTextView.text = buildMembersString(chat)
+        itemLayout.chatTextView.text = buildLastMessageString(holder.itemLayout.context, chat)
         itemLayout.setOnClickListener {
             // При клике на чат показываем его сообщения
             val intent = Intent(itemLayout.context, ChatActivity::class.java)
@@ -161,16 +176,23 @@ class UserChatsAdapter(var currentUser: LiveData<User?>) :
         }
     }
 
-    private fun buildMembersString(chat: ChatWithMembers): String {
-        val numOfMembersToShow = 2
-        var membersString = chat.members
-            .filter { it.userId != currentUser.value?.userId }
-            .take(numOfMembersToShow)
-            .joinToString { it.memberDisplayName }
-        if (chat.members.size > numOfMembersToShow) {
-            membersString += ", ..."
-        }
-        return membersString
+    private fun buildLastMessageString(context: Context, chat: ChatWithMembers): Spannable {
+        if (chat.lastMessageCreatedOn == null || currentUser.value == null)
+            return SpannableString(context.getString(R.string.no_messages))
+
+        val name = if (chat.lastMessageUserId == currentUser.value!!.userId)
+            context.getString(R.string.user_pronoun).getColoredString(context, R.color.dark_gray, isActive = true)
+        else
+            User(chat.lastMessageUserId!!, chat.lastMessageMemberDisplayName!!)
+                .getColored(
+                    context,
+                    chat.members.find { it.userId == chat.lastMessageUserId }?.isActive ?: false
+                )
+
+        val delimiter = SpannableString(": ")
+        val text = SpannableString(chat.lastMessageText)
+
+        return SpannableStringBuilder().append(name).append(delimiter).append(text)
     }
 
     override fun getItemCount() = chats.size

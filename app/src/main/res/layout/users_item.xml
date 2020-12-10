@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-android:layout_width="match_parent"
-android:layout_height="wrap_content">
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,26 +16,26 @@ android:layout_height="wrap_content">
         android:padding="10dp">
 
         <TextView
-            android:id="@+id/chatHeaderTextView"
+            android:id="@+id/displayNameTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="[Chat Title]"
+            android:text="[displayName]"
             android:textColor="@color/dark_gray"
             android:textSize="@dimen/text_size_large" />
 
         <TextView
-            android:id="@+id/chatTextView"
+            android:id="@+id/userIdTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="5dp"
             android:layout_weight="1"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="[Last message]"
+            android:text="[userId]"
             android:textColor="@color/light_dark_gray"
             android:textSize="@dimen/text_size_medium" />
     </LinearLayout>
